@@ -3,49 +3,407 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Agent</title>
-<!-- Optional: used only to draw A2UI Icon components. If it can't load (offline/
-     corp network), icons fall back to showing their name as text. -->
+<title>PitStop AI — OBD2 & Automotive Diagnostic Assistant</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
-  :root { --accent:#1a73e8; --bg:#f6f8fa; --border:#dfe3e8; }
-  * { box-sizing:border-box; }
-  body { margin:0; font-family:system-ui,sans-serif; background:var(--bg); display:flex; flex-direction:column; height:100vh; }
-  header { background:var(--accent); color:#fff; padding:.9rem 1.2rem; font-weight:700; }
-  #log { flex:1; overflow-y:auto; padding:1.2rem; max-width:780px; width:100%; margin:0 auto; }
-  .msg { margin:.6rem 0; }
-  .msg.user { text-align:right; }
-  .bubble { display:inline-block; padding:.6rem .9rem; border-radius:12px; background:#fff; border:1px solid var(--border); text-align:left; max-width:90%; white-space:pre-wrap; }
-  .msg.user .bubble { background:var(--accent); color:#fff; border:none; }
-  /* When the reply is an A2UI card, drop the bubble chrome so the card stands alone. */
-  .bubble.rich { background:transparent; border:none; padding:0; max-width:100%; white-space:normal; }
-  form { display:flex; gap:.5rem; padding:1rem; border-top:1px solid var(--border); background:#fff; }
-  input { flex:1; padding:.7rem; border:1px solid var(--border); border-radius:8px; font-size:1rem; }
-  button { padding:.7rem 1.1rem; border:none; border-radius:8px; background:var(--accent); color:#fff; font-weight:600; cursor:pointer; }
+  :root {
+    --accent: #e53935;
+    --accent-hover: #c62828;
+    --accent-glow: rgba(229, 57, 53, 0.2);
+    --bg-dark: #0f172a;
+    --bg-card: #1e293b;
+    --bg-chat: #0b1325;
+    --border: #334155;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --chip-bg: #1e293b;
+    --chip-border: #475569;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--bg-dark);
+    color: var(--text-primary);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+  header {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 0.85rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    z-index: 10;
+  }
+  .brand-group {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .brand-logo {
+    width: 38px;
+    height: 38px;
+    background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 15px var(--accent-glow);
+  }
+  .brand-logo svg {
+    width: 22px;
+    height: 22px;
+    fill: #ffffff;
+  }
+  .brand-info h1 {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    background: linear-gradient(90deg, #ffffff, #cbd5e1);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .brand-info p {
+    margin: 0;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+  .status-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    background: rgba(34, 197, 94, 0.1);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    color: #4ade80;
+    padding: 0.3rem 0.65rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .status-dot {
+    width: 7px;
+    height: 7px;
+    background: #22c55e;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+  }
 
-  /* --- A2UI component styles (Card, Column, Row, Text, Divider, List, Image, Icon) --- */
-  .a2card { border:1px solid var(--border); border-radius:12px; padding:1rem; background:#fff; box-shadow:0 1px 3px rgba(0,0,0,.06); max-width:100%; }
-  .a2card + .a2card, .a2col > .a2card { margin-top:.6rem; }
-  .a2col { display:flex; flex-direction:column; gap:.4rem; }
-  .a2row { display:flex; flex-direction:row; gap:.6rem; align-items:center; flex-wrap:wrap; }
-  .a2row.between { justify-content:space-between; }
-  .a2text { margin:0; line-height:1.4; }
-  .a2text.a2-h1 { font-size:1.5rem; font-weight:700; }
-  .a2text.a2-h2 { font-size:1.25rem; font-weight:700; }
-  .a2text.a2-h3 { font-size:1.1rem; font-weight:600; }
-  .a2text.a2-h4 { font-size:1rem; font-weight:600; }
-  .a2text.a2-caption { font-size:.85rem; color:#666; }
-  .a2divider { border:none; border-top:1px solid var(--border); margin:.4rem 0; width:100%; }
-  .a2img { max-width:100%; border-radius:8px; display:block; }
-  .material-symbols-outlined { font-family:'Material Symbols Outlined'; font-size:1.25rem; line-height:1; vertical-align:middle; color:var(--accent); }
+  #log {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem;
+    max-width: 860px;
+    width: 100%;
+    margin: 0 auto;
+    scroll-behavior: smooth;
+  }
+
+  /* Welcome Hero Card */
+  .welcome-card {
+    background: radial-gradient(circle at top right, rgba(239, 68, 68, 0.15), transparent 45%), var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.6rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    position: relative;
+    overflow: hidden;
+  }
+  .welcome-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.85rem;
+  }
+  .welcome-icon-box {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ef4444;
+  }
+  .welcome-icon-box svg {
+    width: 28px;
+    height: 28px;
+    fill: currentColor;
+  }
+  .welcome-title {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #ffffff;
+  }
+  .welcome-subtitle {
+    margin: 0.2rem 0 0 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+  .welcome-desc {
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: #cbd5e1;
+    margin: 0.6rem 0 1rem 0;
+  }
+  .grid-badges {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 0.75rem;
+    margin-top: 1rem;
+  }
+  .feature-item {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(51, 65, 85, 0.8);
+    border-radius: 10px;
+    padding: 0.75rem 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .feature-item span.icon {
+    font-size: 1.3rem;
+  }
+  .feature-item .text {
+    font-size: 0.8rem;
+    color: #e2e8f0;
+    font-weight: 500;
+  }
+
+  /* Quick Actions Prompt Chips */
+  .prompt-chips-label {
+    margin: 1.25rem 0 0.5rem 0;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+  }
+  .chips-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .chip-btn {
+    background: var(--chip-bg);
+    border: 1px solid var(--chip-border);
+    color: #cbd5e1;
+    padding: 0.45rem 0.85rem;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .chip-btn:hover {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: #ef4444;
+    color: #ffffff;
+    transform: translateY(-1px);
+  }
+
+  /* Chat Messages */
+  .msg { margin: 0.85rem 0; }
+  .msg.user { text-align: right; }
+  .bubble {
+    display: inline-block;
+    padding: 0.75rem 1.1rem;
+    border-radius: 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    text-align: left;
+    max-width: 88%;
+    white-space: pre-wrap;
+    line-height: 1.5;
+    font-size: 0.93rem;
+    color: #f1f5f9;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  }
+  .msg.user .bubble {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: #ffffff;
+    border: none;
+    box-shadow: 0 4px 15px var(--accent-glow);
+  }
+  .bubble.rich {
+    background: transparent;
+    border: none;
+    padding: 0;
+    max-width: 100%;
+    white-space: normal;
+    box-shadow: none;
+  }
+
+  /* Input Form */
+  form {
+    display: flex;
+    gap: 0.65rem;
+    padding: 1.1rem 1.5rem;
+    border-top: 1px solid var(--border);
+    background: var(--bg-card);
+    max-width: 860px;
+    width: 100%;
+    margin: 0 auto;
+    border-radius: 16px 16px 0 0;
+  }
+  input {
+    flex: 1;
+    padding: 0.8rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 0.95rem;
+    background: var(--bg-dark);
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input:focus {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 2px var(--accent-glow);
+  }
+  button {
+    padding: 0.8rem 1.4rem;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    box-shadow: 0 4px 14px var(--accent-glow);
+    transition: transform 0.15s, background 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  button:hover {
+    background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+    transform: translateY(-1px);
+  }
+  button:active {
+    transform: translateY(1px);
+  }
+
+  /* A2UI component styles */
+  .a2card {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.2rem;
+    background: var(--bg-card);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    max-width: 100%;
+    color: var(--text-primary);
+  }
+  .a2card + .a2card, .a2col > .a2card { margin-top: 0.75rem; }
+  .a2col { display: flex; flex-direction: column; gap: 0.5rem; }
+  .a2row { display: flex; flex-direction: row; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
+  .a2row.between { justify-content: space-between; }
+  .a2text { margin: 0; line-height: 1.5; color: #f1f5f9; }
+  .a2text.a2-h1 { font-size: 1.45rem; font-weight: 700; color: #ffffff; }
+  .a2text.a2-h2 { font-size: 1.2rem; font-weight: 700; color: #f87171; }
+  .a2text.a2-h3 { font-size: 1.05rem; font-weight: 600; color: #ffffff; }
+  .a2text.a2-h4 { font-size: 0.95rem; font-weight: 600; color: #cbd5e1; }
+  .a2text.a2-caption { font-size: 0.82rem; color: var(--text-secondary); }
+  .a2divider { border: none; border-top: 1px solid var(--border); margin: 0.6rem 0; width: 100%; }
+  .a2img { max-width: 100%; border-radius: 10px; display: block; border: 1px solid var(--border); }
+  .material-symbols-outlined { font-family: 'Material Symbols Outlined'; font-size: 1.25rem; line-height: 1; vertical-align: middle; color: #ef4444; }
 </style>
 </head>
 <body>
-<header>Your Agent</header>
-<div id="log"></div>
+
+<header>
+  <div class="brand-group">
+    <div class="brand-logo">
+      <svg viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.22.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.85 7h10.29l1.04 3H5.81l1.04-3zM19 17H5v-4.66l.12-.34h13.77l.11.34V17z"/><circle cx="7.5" cy="14.5" r="1.5"/><circle cx="16.5" cy="14.5" r="1.5"/></svg>
+    </div>
+    <div class="brand-info">
+      <h1>PitStop AI Co-Pilot</h1>
+      <p>Automotive OBD2 Diagnostics & Repair Intelligence</p>
+    </div>
+  </div>
+  <div class="status-badge">
+    <span class="status-dot"></span>
+    Agent Ready
+  </div>
+</header>
+
+<div id="log">
+  <!-- Interactive Welcome Card with Automotive Graphics -->
+  <div class="welcome-card">
+    <div class="welcome-header">
+      <div class="welcome-icon-box">
+        <svg viewBox="0 0 24 24"><path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z"/></svg>
+      </div>
+      <div>
+        <h2 class="welcome-title">Welcome to PitStop AI Diagnostic Hub</h2>
+        <p class="welcome-subtitle">Powered by Gemini 2.5 Flash, Vertex AI Agent Platform & NHTSA Services</p>
+      </div>
+    </div>
+    <p class="welcome-desc">
+      Have a check engine light or diagnostic trouble code? Enter your OBD2 code, VIN, or vehicle symptoms below to get verified causes, urgency assessment, DIY repair steps, and cost comparisons.
+    </p>
+
+    <div class="grid-badges">
+      <div class="feature-item">
+        <span class="icon">⚡</span>
+        <span class="text">Instant OBD2 Code Diagnostic</span>
+      </div>
+      <div class="feature-item">
+        <span class="icon">🚗</span>
+        <span class="text">VIN Specs & Recall Verification</span>
+      </div>
+      <div class="feature-item">
+        <span class="icon">📊</span>
+        <span class="text">Cost Estimation (DIY vs Shop)</span>
+      </div>
+      <div class="feature-item">
+        <span class="icon">📍</span>
+        <span class="text">Nearby Repair Shops & Parts</span>
+      </div>
+    </div>
+
+    <div class="prompt-chips-label">Quick Suggestions (click to ask):</div>
+    <div class="chips-container">
+      <button class="chip-btn" onclick="sendPrompt('What does OBD2 code P0420 mean, and how severe is it?')">
+        <span>🔍</span> Code P0420 Overview
+      </button>
+      <button class="chip-btn" onclick="sendPrompt('Show my vehicle from the garage')">
+        <span>🚘</span> Show My Garage
+      </button>
+      <button class="chip-btn" onclick="sendPrompt('What causes a P0300 cylinder misfire, and what will it cost to fix?')">
+        <span>⚠️</span> P0300 Repair Costs
+      </button>
+      <button class="chip-btn" onclick="sendPrompt('Find nearby auto repair shops in San Francisco')">
+        <span>🛠️</span> Find Nearby Mechanics
+      </button>
+    </div>
+  </div>
+</div>
+
 <form id="form">
-  <input id="input" placeholder="Ask something…" autocomplete="off" autofocus>
-  <button>Send</button>
+  <input id="input" placeholder="Enter OBD2 code (e.g. P0420), VIN, or symptom..." autocomplete="off" autofocus>
+  <button type="submit">
+    <span>Send</span>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+  </button>
 </form>
 
 <script>
@@ -62,14 +420,6 @@ function bubble(who) {
   return b;
 }
 
-/* ----------------------------------------------------------------------------
- * A2UI mini-renderer (v0.8 Basic Catalog subset).
- * Renders Card / Column / Row / Text / Divider / List / Image / Icon.
- * Anything else falls back to plain text (see renderReply). All text goes in via
- * textContent and image URLs are validated, so agent output can't inject HTML.
- * -------------------------------------------------------------------------- */
-
-// A "bound value" is usually {literalString: "..."}; we only support literals.
 function boundStr(v) {
   if (v == null) return "";
   if (typeof v === "string") return v;
@@ -77,7 +427,6 @@ function boundStr(v) {
   return "";
 }
 
-// child ids of a component's props: single `child` and/or `children.explicitList`.
 function childIds(props) {
   const ids = [];
   if (props && typeof props.child === "string") ids.push(props.child);
@@ -86,11 +435,10 @@ function childIds(props) {
   return ids;
 }
 
-// A2UI icon names are camelCase (locationOn); Material Symbols wants snake_case.
 function iconName(n) { return String(n || "").replace(/([a-z0-9])([A-Z])/g, "$1_$2").replace(/\s+/g, "_").toLowerCase(); }
 
 function buildNode(id, comps, seen) {
-  if (!id || seen.has(id)) return null;   // missing / cycle guard
+  if (!id || seen.has(id)) return null;
   seen.add(id);
   const spec = comps[id];
   if (!spec || typeof spec !== "object") return null;
@@ -112,61 +460,62 @@ function buildNode(id, comps, seen) {
       kids().forEach(n => d.appendChild(n)); return d;
     }
     case "Text": {
-      const t = el("div", "a2text");
-      const hint = String(props.usageHint || "body").toLowerCase();
-      if (["h1", "h2", "h3", "h4", "h5", "h6"].includes(hint)) t.classList.add("a2-" + hint);
-      else if (hint === "caption") t.classList.add("a2-caption");
-      t.textContent = boundStr(props.text);
-      return t;
+      const hint = props.usageHint || "body";
+      const d = el("p", "a2text a2-" + hint, boundStr(props.text));
+      return d;
     }
-    case "Divider":
-      return el("hr", "a2divider");
+    case "Divider": return el("hr", "a2divider");
     case "Image": {
-      const src = boundStr(props.url || props.src);
-      if (!/^https?:\/\//i.test(src)) return null;   // only allow safe URLs
-      const img = el("img", "a2img"); img.src = src; img.alt = boundStr(props.alt) || ""; return img;
+      const url = boundStr(props.url);
+      if (!/^https?:\/\//i.test(url)) return null;
+      const img = el("img", "a2img"); img.src = url; img.alt = boundStr(props.alt) || "";
+      return img;
     }
     case "Icon": {
-      const s = el("span", "material-symbols-outlined"); s.textContent = iconName(boundStr(props.name) || props.name); return s;
+      const name = boundStr(props.name);
+      return el("span", "material-symbols-outlined", iconName(name));
     }
-    default:
-      return null;   // unknown component -> skipped (text fallback covers content)
+    default: {
+      const fallback = el("div", "a2text a2-body");
+      kids().forEach(n => fallback.appendChild(n));
+      return fallback;
+    }
   }
 }
 
-// Render one or more A2UI messages (beginRendering + surfaceUpdate) into `container`.
-// Returns true if anything was drawn.
 function renderSurface(messages, container) {
+  let rootId = null;
   const comps = {};
-  const roots = [];
   for (const m of messages) {
-    if (m.beginRendering && typeof m.beginRendering.root === "string") roots.push(m.beginRendering.root);
-    const su = m.surfaceUpdate;
-    if (su && Array.isArray(su.components)) for (const c of su.components) if (c && c.id && c.component) comps[c.id] = c.component;
+    if (m.beginRendering && m.beginRendering.root) rootId = m.beginRendering.root;
+    if (m.surfaceUpdate && Array.isArray(m.surfaceUpdate.components)) {
+      for (const c of m.surfaceUpdate.components) {
+        if (c && c.id) comps[c.id] = c.component;
+      }
+    }
   }
-  let rootIds = roots.filter(r => comps[r]);
-  if (rootIds.length === 0) {   // no valid root given -> infer un-referenced components
-    const referenced = new Set();
-    for (const id in comps) { const spec = comps[id]; childIds(spec[Object.keys(spec)[0]] || {}).forEach(c => referenced.add(c)); }
-    rootIds = Object.keys(comps).filter(id => !referenced.has(id));
-  }
-  let drew = false;
-  for (const rid of rootIds) { const node = buildNode(rid, comps, new Set()); if (node) { container.appendChild(node); drew = true; } }
-  return drew;
+  if (!rootId || !comps[rootId]) return false;
+  const tree = buildNode(rootId, comps, new Set());
+  if (!tree) return false;
+  container.appendChild(tree);
+  return true;
 }
 
-// Fallback: pull every Text value out of the messages as plain text.
 function flattenText(messages) {
   const out = [];
   for (const m of messages) {
-    const su = m.surfaceUpdate;
-    if (su && Array.isArray(su.components)) for (const c of su.components) if (c && c.component && c.component.Text) out.push(boundStr(c.component.Text.text));
+    const su = m && m.surfaceUpdate;
+    if (!su || !Array.isArray(su.components)) continue;
+    for (const c of su.components) {
+      const t = c && c.component && c.component.Text;
+      if (t) { const s = boundStr(t.text); if (s) out.push(s); }
+    }
   }
   return out.join("\n").trim();
 }
 
 function renderReply(b, parts) {
-  b.textContent = "";   // clear the "…" placeholder
+  b.textContent = "";
   const texts = parts.filter(p => p && (p.kind === "text" || (!p.kind && p.text))).map(p => p.text || "");
   const a2ui = parts.filter(p => p && p.kind === "a2ui" && p.data).map(p => p.data);
 
@@ -181,19 +530,15 @@ function renderReply(b, parts) {
   log.scrollTop = log.scrollHeight;
 }
 
-// The proxy returns { parts: [{kind:"text",text} | {kind:"a2ui",data}] }.
-form.addEventListener("submit", async (ev) => {
-  ev.preventDefault();
-  const text = input.value.trim();
-  if (!text) return;
+async function sendChat(text) {
   bubble("user").textContent = text;
-  input.value = "";
   const b = bubble("agent"); b.textContent = "…";
   try {
-    const res = await fetch("/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message: text }) });
-    // Read as text first, then parse. If the proxy ever returns a non-JSON error
-    // page (e.g. a plain "Internal Server Error"), show that body instead of a
-    // cryptic "Unexpected token" JSON error.
+    const res = await fetch("/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: text })
+    });
     const raw = await res.text();
     let data;
     try { data = JSON.parse(raw); }
@@ -202,6 +547,19 @@ form.addEventListener("submit", async (ev) => {
   } catch (e) {
     b.textContent = "Error: " + e.message;
   }
+}
+
+function sendPrompt(text) {
+  input.value = "";
+  sendChat(text);
+}
+
+form.addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = "";
+  sendChat(text);
 });
 </script>
 </body>
